@@ -48,6 +48,16 @@ class IdentifiedOrgRequest[A](
   val environment: Environment = auth.environment
 }
 
+class PartnerRequest[A](
+  val auth: PartnerAuthData.Identified,
+  request: Request[A]
+) extends WrappedRequest[A](request)
+
+class PartnerOrgRequest[A](
+  val auth: PartnerAuthData.Org,
+  request: Request[A]
+) extends WrappedRequest[A](request)
+
 /**
   * Any type of request that contains org data
   */
@@ -186,6 +196,7 @@ trait FlowController extends FlowControllerHelpers {
     }
   }
 
+
   object Org extends ActionBuilder[OrgRequest] {
 
     def invokeBlock[A](request: Request[A], block: (OrgRequest[A]) => Future[Result]): Future[Result] = {
@@ -197,6 +208,40 @@ trait FlowController extends FlowControllerHelpers {
         case Some(ad) => {
           block(
             new OrgRequest(ad, request)
+          )
+        }
+      }
+    }
+  }
+
+  object Partner extends ActionBuilder[PartnerRequest] {
+
+    def invokeBlock[A](request: Request[A], block: (PartnerRequest[A]) => Future[Result]): Future[Result] = {
+      auth(request.headers)(PartnerAuthData.Identified.fromMap) match {
+        case None => Future.successful(
+          unauthorized(request)
+        )
+
+        case Some(ad) => {
+          block(
+            new PartnerRequest(ad, request)
+          )
+        }
+      }
+    }
+  }
+
+  object PartnerOrg extends ActionBuilder[PartnerOrgRequest] {
+
+    def invokeBlock[A](request: Request[A], block: (PartnerOrgRequest[A]) => Future[Result]): Future[Result] = {
+      auth(request.headers)(PartnerAuthData.Org.fromMap) match {
+        case None => Future.successful(
+          unauthorized(request)
+        )
+
+        case Some(ad) => {
+          block(
+            new PartnerOrgRequest(ad, request)
           )
         }
       }

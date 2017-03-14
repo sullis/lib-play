@@ -102,6 +102,28 @@ object AuthHeaders {
     )
   }
 
+  def partner(
+    partner: FlowPartner,
+    requestId: String = generateRequestId()
+  ): PartnerAuthData.Identified = {
+    PartnerAuthData.Identified(
+      requestId = requestId,
+      partner = partner
+    )
+  }
+
+  def partnerOrganization(
+    partner: FlowPartner,
+    organization: String,
+    requestId: String = generateRequestId()
+  ): PartnerAuthData.Org = {
+    PartnerAuthData.Org(
+      requestId = requestId,
+      partner = partner,
+      organization = organization
+    )
+  }
+
   def createFlowSession(): FlowSession = {
     FlowSession(
       id = Constants.Prefixes.Session + random.alphaNumeric(36)

@@ -9,14 +9,15 @@ import org.joda.time.format.ISODateTimeFormat
 import org.joda.time.format.ISODateTimeFormat.dateTime
 import play.api.Logger
 
-case class AuthDataMap(
+private[util] case class AuthDataMap(
   requestId: String,
   createdAt: DateTime,
   session: Option[FlowSession] = None,
   user: Option[UserReference] = None,
   organization: Option[String] = None,
   environment: Option[Environment] = None,
-  role: Option[Role] = None
+  role: Option[Role] = None,
+  partner: Option[FlowPartner] = None
 ) {
 
   def toMap: Map[String, String] = {
@@ -49,6 +50,14 @@ case class FlowSession(
     s"Flow session id must start with '${Constants.Prefixes.Session}' and not[${id.substring(0, 3)}]"
   )
 }
+
+/**
+  * Makes available key data related to partners interacting
+  * with the Flow API.
+  */
+case class FlowPartner(
+  id: String
+)
 
 /**
   * Represents the data securely authenticated by the API proxy
@@ -103,6 +112,10 @@ sealed trait AuthData {
 sealed trait OrgAuthData extends AuthData {
   def organization: String
   def environment: Environment
+}
+
+sealed trait PartnerAuthData extends AuthData {
+  def partner: FlowPartner
 }
 
 object AuthDataMap {
@@ -370,6 +383,77 @@ object OrgAuthData {
       Identified.fromMap(data) match {
         case None => Session.fromMap(data)
         case Some(auth) => Some(auth)
+      }
+    }
+  }
+
+}
+
+object PartnerAuthData {
+
+  case class Identified(
+    override val createdAt: DateTime = DateTime.now,
+    override val requestId: String,
+    override val partner: FlowPartner
+  ) extends PartnerAuthData {
+
+    override protected def decorate(base: AuthDataMap): AuthDataMap = {
+      base.copy(
+        partner = Some(partner)
+      )
+    }
+
+  }
+
+  object Identified {
+
+    def fromMap(data: Map[String, String]): Option[Identified] = {
+      AuthDataMap.fromMap(data) { dm =>
+        dm.partner.map { partner =>
+          Identified(
+            createdAt = dm.createdAt,
+            requestId = dm.requestId,
+            partner = partner
+          )
+        }
+      }
+    }
+  }
+
+
+  case class Org(
+    override val createdAt: DateTime = DateTime.now,
+    override val requestId: String,
+    override val partner: FlowPartner,
+    organization: String
+  ) extends PartnerAuthData {
+
+    override protected def decorate(base: AuthDataMap): AuthDataMap = {
+      base.copy(
+        partner = Some(partner),
+        organization = Some(organization)
+      )
+    }
+
+  }
+
+  object Org {
+
+    def fromMap(data: Map[String, String]): Option[Org] = {
+      AuthDataMap.fromMap(data) { dm =>
+        (dm.partner, dm.organization) match {
+          case (Some(partner), Some(organization)) => {
+            Some(
+              Org(
+                createdAt = dm.createdAt,
+                requestId = dm.requestId,
+                partner = partner,
+                organization = organization
+              )
+            )
+          }
+          case _ => None
+        }
       }
     }
   }
